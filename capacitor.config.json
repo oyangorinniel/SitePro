@@ -1,0 +1,6 @@
+{
+  "appId": "com.punchlistpro.app",
+  "appName": "Punch List Pro",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
