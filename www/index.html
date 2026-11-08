@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Punch List Pro</title>
+<style>
+:root{--bg:#0a0e17;--pn:#0f1623;--ln:#1f3050;--tx:#e8eefc;--mu:#8190ab;--ac:#22d3ee;--am:#ffb000;--bt:#111;--gr:rgba(34,211,238,.07);--rd:#ff5a5f;--gn:#3be8a0}
+[data-theme=light]{--bg:#1a4a94;--pn:#1d5199;--ln:rgba(255,255,255,.55);--tx:#fff;--mu:#bcd3f7;--ac:#fff;--am:#fff;--bt:#12356b;--gr:rgba(255,255,255,.14);--rd:#ffd0d0;--gn:#d6ffe9}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 "Bahnschrift","Segoe UI",Roboto,sans-serif;min-height:100vh;
+background-image:linear-gradient(var(--gr) 1px,transparent 1px),linear-gradient(90deg,var(--gr) 1px,transparent 1px);background-size:24px 24px;padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+.hz{height:7px;background:repeating-linear-gradient(135deg,var(--am) 0 10px,transparent 10px 20px);margin-top:env(safe-area-inset-top)}
+header{display:flex;justify-content:space-between;align-items:flex-end;padding:14px 16px 10px;border-bottom:4px solid var(--tx);margin:0 16px}
+h1{margin:0;font-size:26px;letter-spacing:.14em;font-weight:800}h1 b{color:var(--am)}
+small,.mu{color:var(--mu);letter-spacing:.14em;font-size:11px;text-transform:uppercase}
+h2{font-size:13px;letter-spacing:.16em;color:var(--mu);margin:0 0 8px;font-weight:700}
+main{padding:14px 16px}
+.pn{background:var(--pn);border:1.5px solid var(--ln);border-radius:10px 2px 10px 2px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.stat{text-align:center;padding:10px 4px}.stat b{display:block;font-size:30px;line-height:1.1}
+.tile{padding:14px;cursor:pointer}.tile i{font-style:normal;color:var(--ac);font-weight:800;font-size:12px;letter-spacing:.2em}.tile b{display:block;font-size:17px;letter-spacing:.08em;margin:4px 0 2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button,.btn{font:inherit;font-weight:800;letter-spacing:.14em;text-transform:uppercase;border:1.5px solid var(--ac);background:transparent;color:var(--ac);padding:11px 14px;border-radius:2px;cursor:pointer}
+button.pr{background:var(--am);color:var(--bt);border-color:var(--am)}button.dg{color:var(--rd);border-color:var(--rd)}
+button.sm{padding:6px 9px;font-size:11px}
+input,select,textarea{width:100%;font:inherit;color:var(--tx);background:transparent;border:1.5px solid var(--ln);border-radius:2px;padding:10px;margin:3px 0 10px}
+select option{color:#111}textarea{min-height:80px}
+label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mu)}
+.fab{position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom));padding:17px;font-size:16px;z-index:5}
+.chip{border:1.5px solid;border-radius:2px;padding:2px 7px;font-size:11px;font-weight:800;letter-spacing:.1em;cursor:pointer}
+.it{display:flex;gap:10px}.it img{width:84px;height:84px;object-fit:cover;border:1.5px solid var(--ln)}.it>div{flex:1;min-width:0}
+.back{background:none;border:0;color:var(--ac);padding:0 0 8px;font-size:12px}
+#menu{position:fixed;inset:0;background:var(--bg);z-index:9;padding:calc(14px + env(safe-area-inset-top)) 14px 14px;display:none;overflow:auto}
+#menu .m{display:flex;gap:16px;padding:16px 4px;border-bottom:1.5px solid var(--ln);font-weight:800;letter-spacing:.12em;cursor:pointer}#menu .m i{font-style:normal;color:var(--ac);width:54px}
+.tb{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:24px;border:1.5px solid var(--ln)}.tb div{padding:8px;border-right:1.5px solid var(--ln)}
+canvas{width:100%;border:1.5px solid var(--ln);touch-action:none;background:#fff;display:block}
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--am);color:var(--bt);padding:9px 14px;font-weight:800;z-index:20;display:none}
+.on{background:var(--ac);color:var(--bg)}
+</style></head><body>
+<div class="hz"></div>
+<header><div><h1>PUNCH<b>/</b>LIST PRO</h1><small>Walk · Shoot · Report</small></div><button onclick="menu(1)">Menu</button></header>
+<main id="app"></main>
+<div id="menu"></div><div id="toast"></div>
+<input id="f" type="file" accept="image/*" capture="environment" hidden onchange="onPhoto(this)">
+<input id="pf" type="file" accept="image/*" hidden onchange="onPlan(this)">
+<script src="jspdf.umd.min.js"></script>
+<script>
+let S={projects:[],items:[],plans:[],theme:'dark',cur:null,ex:{paper:'A4',ori:'p',m:[15,12,15,12],th:32,st:'All',title:'Punch List Report',co:'',plans:{}}},V='home',P={},E={tool:'pin',col:'#ff3b30',n:1},H=[],X;
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),uid=()=>Math.random().toString(36).slice(2,10);
+const CATS=['Architectural','Structural','MEP','Civil','Finishes','Safety','Other'],PR=['Low','Medium','High'],ST=['Open','Re-check','Closed'];
+const PAPER={A3:[297,420],A4:[210,297],A5:[148,210],Letter:[215.9,279.4],Legal:[215.9,355.6],Tabloid:[279.4,431.8]};
+const fmt=t=>new Date(t).toLocaleString([],{dateStyle:'medium',timeStyle:'short'});
+const idb=new Promise(r=>{const q=indexedDB.open('plp',1);q.onupgradeneeded=()=>q.result.createObjectStore('k');q.onsuccess=()=>r(q.result)});
+const load=async()=>{const d=await idb;return new Promise(r=>{const g=d.transaction('k').objectStore('k').get('s');g.onsuccess=()=>r(g.result)})};
+const save=async()=>{const d=await idb;d.transaction('k','readwrite').objectStore('k').put(JSON.parse(JSON.stringify(S)),'s')};
+const toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2400)};
+const cur=()=>S.projects.find(p=>p.id==S.cur),pit=()=>S.items.filter(i=>i.pid==S.cur);
+function go(v,p={}){V=v;P=p;menu(0);render();scrollTo(0,0)}
+function render(){document.documentElement.dataset.theme=S.theme;$('#app').innerHTML=VW[V]();P.after&&setTimeout(P.after)}
+function menu(o){const m=$('#menu');m.style.display=o?'block':'none';if(!o)return;
+const L=[['G-001','Home','home'],['A-101','Projects','projects'],['A-102','Punch list','list'],['A-103','Plans &amp; markup','plans'],['C-201','Export PDF','export']];
+m.innerHTML=`<div class=row style="align-items:center"><h1 style="font-size:20px;color:var(--am)">SHEET INDEX</h1><button onclick="menu(0)" style="flex:0">X</button></div><div style="height:4px;background:var(--am);margin:8px 0"></div>`+L.map(l=>`<div class=m onclick="go('${l[2]}')"><i>${l[0]}</i>${l[1]}</div>`).join('')+
+`<div class=m onclick="S.theme=S.theme=='dark'?'light':'dark';save();menu(0);render()"><i>S-401</i>Theme: ${S.theme=='dark'?'Dark → Blueprint':'Blueprint → Dark'}</div>
+<div class=tb><div><small>Project</small><br>Punch List Pro</div><div><small>Mode</small><br>Offline ready</div><div style="border:0"><small>Rev</small><br>1.0</div></div>`}
+/* photo + stamp */
+function img(file,max){return new Promise(r=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);r({c,w:c.width,h:c.height})};i.src=URL.createObjectURL(file)})}
+async function onPhoto(el){const f=el.files[0];el.value='';if(!f)return;if(!S.projects.length){toast('Create a project first');return go('projects')}
+const ts=Date.now(),{c,w,h}=await img(f,1280),x=c.getContext('2d'),fs=Math.max(14,w/38),t=fmt(ts);
+x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,h-fs*1.8,w,fs*1.8);x.fillStyle='#ffb000';x.font=`bold ${fs}px sans-serif`;x.fillText(t,fs*.5,h-fs*.5);
+go('form',{it:{id:uid(),img:c.toDataURL('image/jpeg',.75),w,h,ts,pid:S.cur||S.projects[0].id,cat:CATS[0],title:'',pr:'Medium',st:'Open',desc:'',loc:'',to:'',isNew:1}})}
+const opt=(a,v)=>a.map(x=>`<option ${x==v?'selected':''}>${x}</option>`).join('');
+const bind=(o,k)=>`oninput="${o}.${k}=this.value" onchange="${o}.${k}=this.value"`;
+function saveItem(){const i=P.it;if(!i.title.trim())return toast('Enter the issue');if(i.isNew){delete i.isNew;S.items.unshift(i);S.cur=i.pid}else S.items=S.items.map(x=>x.id==i.id?i:x);save();toast('Saved');go('list')}
+function cyc(id){const i=S.items.find(x=>x.id==id);i.st=ST[(ST.indexOf(i.st)+1)%3];save();render()}
+/* plans */
+async function onPlan(el){const f=el.files[0];el.value='';if(!f||!S.cur)return;const{c,w,h}=await img(f,1800);S.plans.push({id:uid(),pid:S.cur,name:f.name.replace(/\.[^.]+$/,''),src:c.toDataURL('image/jpeg',.85),w,h});save();render()}
+function edit(id){const pl=S.plans.find(x=>x.id==id);E.n=1;go('ed',{pl,after(){const c=$('#cv'),i=new Image();i.onload=()=>{c.width=pl.w;c.height=pl.h;X=c.getContext('2d');X.drawImage(i,0,0);H=[c.toDataURL()];wire(c)};i.src=pl.marked||pl.src}})}
+function wire(c){const lw=Math.max(3,c.width/250),pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};let d=0;
+c.onpointerdown=e=>{const[x,y]=pt(e);X.strokeStyle=X.fillStyle=E.col;X.lineWidth=lw;X.lineCap='round';
+if(E.tool=='pin'){X.beginPath();X.arc(x,y,lw*4,0,7);X.fill();X.fillStyle='#fff';X.font=`bold ${lw*5}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText(E.n++,x,y);H.push(c.toDataURL());$('#pn').textContent=E.n}else{d=1;X.beginPath();X.moveTo(x,y)}};
+c.onpointermove=e=>{if(d){const[x,y]=pt(e);X.lineTo(x,y);X.stroke()}};c.onpointerup=c.onpointerleave=()=>{if(d){d=0;H.push(c.toDataURL())}}}
+function undo(){if(H.length<2)return;H.pop();const i=new Image();i.onload=()=>X.drawImage(i,0,0);i.src=H[H.length-1]}
+function savePlan(){P.pl.marked=$('#cv').toDataURL('image/jpeg',.85);save();toast('Markup saved');go('plans')}
+/* views */
+const VW={
+home(){const it=pit(),c=s=>it.filter(i=>i.st==s).length,T=(n,t,s,v)=>`<div class="pn tile" onclick="${v}"><i>${n}</i><b>${t}</b><span class=mu>${s}</span></div>`;
+return `<div class="pn row" style="align-items:center"><div><small>Job site</small><div style="font-size:22px;font-weight:800">${esc(cur()?.name||'No project yet')}</div></div><button class=sm style="flex:0" onclick="go('projects')">Change</button></div>
+<div class=row><div class="pn stat" style="border-color:var(--rd)"><b>${c('Open')}</b><small>Open</small></div><div class="pn stat"><b style="color:var(--ac)">${c('Re-check')}</b><small>Re-check</small></div><div class="pn stat"><b style="color:var(--gn)">${c('Closed')}</b><small>Closed</small></div></div>
+<div class=grid>${T('01','PUNCH LIST',it.length+' items',"go('list')")}${T('02','PROJECTS',S.projects.length+' sites',"go('projects')")}${T('03','PLANS',S.plans.filter(p=>p.pid==S.cur).length+' sheets',"go('plans')")}${T('04','EXPORT','PDF report',"go('export')")}</div>
+<button class="pr fab" onclick="$('#f').click()">▶ Capture photo</button>`},
+projects(){return `<h2>PROJECTS</h2><div class=pn><label>Project name</label><input id=pn1 placeholder="e.g. Tanay Residence"><label>Address / client</label><input id=pa><button class=pr onclick="addP()">Create project</button></div>`+
+S.projects.map(p=>`<div class="pn row" style="align-items:center"><div><b>${esc(p.name)}</b><br><span class=mu>${esc(p.addr||'')}</span></div><button class=sm style="flex:0" onclick="S.cur='${p.id}';save();go('home')">${p.id==S.cur?'Active':'Use'}</button><button class="sm dg" style="flex:0" onclick="delP('${p.id}')">Del</button></div>`).join('')},
+list(){const it=pit();return `<h2>PUNCH LIST · ${esc(cur()?.name||'')}</h2>`+(it.length?it.map(i=>`<div class="pn it"><img src="${i.img}" onclick="go('form',{it:S.items.find(x=>x.id=='${i.id}')})"><div onclick="go('form',{it:S.items.find(x=>x.id=='${i.id}')})"><b>${esc(i.title)}</b><br><span class=mu>${esc(i.cat)} · ${esc(i.loc)} · ${esc(i.to)}</span><br><span class=mu>${fmt(i.ts)}</span></div><div style="flex:0;text-align:right"><span class=chip onclick="cyc('${i.id}')" style="color:${i.st=='Open'?'var(--rd)':i.st=='Closed'?'var(--gn)':'var(--ac)'}">${i.st}</span><br><small>${i.pr}</small></div></div>`).join(''):'<div class="pn mu">No items yet. Tap Capture photo.</div>')+`<button class="pr fab" onclick="$('#f').click()">▶ Capture photo</button>`},
+form(){const i=P.it,o='P.it';return `<button class=back onclick="go('list')">‹ Back</button><img src="${i.img}" style="width:100%;border:1.5px solid var(--ln);margin-bottom:10px"><div class=pn>
+<label>Project</label><select ${bind(o,'pid')}>${S.projects.map(p=>`<option value="${p.id}" ${p.id==i.pid?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+<label>Issue</label><input value="${esc(i.title)}" placeholder="e.g. Cracked tile at corridor" ${bind(o,'title')}>
+<div class=row><div><label>Category</label><select ${bind(o,'cat')}>${opt(CATS,i.cat)}</select></div><div><label>Priority</label><select ${bind(o,'pr')}>${opt(PR,i.pr)}</select></div></div>
+<label>Description</label><textarea ${bind(o,'desc')}>${esc(i.desc)}</textarea>
+<label>Location</label><input value="${esc(i.loc)}" placeholder="Level 2, Room 204" ${bind(o,'loc')}>
+<label>Assigned to</label><input value="${esc(i.to)}" ${bind(o,'to')}>
+<label>Status</label><select ${bind(o,'st')}>${opt(ST,i.st)}</select>
+<button class=pr style="width:100%" onclick="saveItem()">Save item</button>${i.isNew?'':`<button class=dg style="width:100%;margin-top:8px" onclick="if(confirm('Delete item?')){S.items=S.items.filter(x=>x.id!='${i.id}');save();go('list')}">Delete</button>`}</div>`},
+plans(){const L=S.plans.filter(p=>p.pid==S.cur);return `<h2>PLANS · ${esc(cur()?.name||'select a project')}</h2><button class=pr style="width:100%;margin-bottom:12px" onclick="$('#pf').click()">Upload plan image</button>`+(L.length?L.map(p=>`<div class="pn it"><img src="${p.marked||p.src}"><div><b>${esc(p.name)}</b><br><span class=mu>${p.marked?'Marked up':'No markup'}</span></div><div style="flex:0"><button class=sm onclick="edit('${p.id}')">Markup</button><br><br><button class="sm dg" onclick="S.plans=S.plans.filter(x=>x.id!='${p.id}');save();render()">Del</button></div></div>`).join(''):'<div class="pn mu">Upload a floor plan photo or screenshot (JPG/PNG). For PDF plans, export a page as an image first.</div>')},
+ed(){const C=['#ff3b30','#ffb000','#22d3ee','#00c853','#111111'];return `<button class=back onclick="go('plans')">‹ Back</button><div class=row style="margin-bottom:8px"><button class="sm ${E.tool=='pin'?'on':''}" onclick="E.tool='pin';render2()">Pin <span id=pn>${E.n}</span></button><button class="sm ${E.tool=='pen'?'on':''}" onclick="E.tool='pen';render2()">Pen</button><button class=sm onclick="undo()">Undo</button></div><div class=row style="margin-bottom:8px">${C.map(c=>`<button class=sm onclick="E.col='${c}'" style="background:${c};border-color:#fff;flex:0 0 40px;height:30px"></button>`).join('')}</div><canvas id=cv></canvas><button class=pr style="width:100%;margin-top:10px" onclick="savePlan()">Save markup</button>`},
+export(){const e=S.ex,pl=S.plans.filter(p=>p.pid==S.cur),n=(k,l,u='')=>`<div><label>${l}</label><input type=number value="${e.m[k]}" oninput="S.ex.m[${k}]=this.value"></div>`;
+return `<h2>EXPORT PDF</h2><div class=pn><label>Report title</label><input value="${esc(e.title)}" oninput="S.ex.title=this.value"><label>Company (optional)</label><input value="${esc(e.co)}" oninput="S.ex.co=this.value">
+<div class=row><div><label>Paper</label><select onchange="S.ex.paper=this.value">${opt(Object.keys(PAPER),e.paper)}</select></div><div><label>Orientation</label><select onchange="S.ex.ori=this.value"><option value=p ${e.ori=='p'?'selected':''}>Portrait</option><option value=l ${e.ori=='l'?'selected':''}>Landscape</option></select></div></div>
+<label>Margins (mm): top, right, bottom, left</label><div class=row>${n(0,'T')}${n(1,'R')}${n(2,'B')}${n(3,'L')}</div>
+<div class=row><div><label>Photo size</label><select onchange="S.ex.th=this.value"><option value=22 ${e.th==22?'selected':''}>Small</option><option value=32 ${e.th==32?'selected':''}>Medium</option><option value=48 ${e.th==48?'selected':''}>Large</option></select></div><div><label>Items</label><select onchange="S.ex.st=this.value">${opt(['All',...ST],e.st)}</select></div></div>
+<label>Key plans to attach</label>${pl.length?pl.map(p=>`<div style="margin:4px 0"><input type=checkbox style="width:auto;margin:0 8px 0 0" ${e.plans[p.id]?'checked':''} onchange="S.ex.plans['${p.id}']=this.checked"> ${esc(p.name)}</div>`).join(''):'<div class=mu>No plans uploaded for this project.</div>'}
+<button class=pr style="width:100%;margin-top:14px" onclick="save();pdf()">Generate PDF</button></div>`}};
+function render2(){const c=$('#cv'),d=c.toDataURL();const i=new Image();render();const n=$('#cv');n.width=c.width;n.height=c.height;X=n.getContext('2d');i.onload=()=>{X.drawImage(i,0,0);wire(n)};i.src=d}
+function addP(){const n=$('#pn1').value.trim();if(!n)return toast('Enter a project name');const p={id:uid(),name:n,addr:$('#pa').value};S.projects.push(p);S.cur=p.id;save();go('home')}
+function delP(id){if(!confirm('Delete project and all its items?'))return;S.projects=S.projects.filter(p=>p.id!=id);S.items=S.items.filter(i=>i.pid!=id);S.plans=S.plans.filter(i=>i.pid!=id);if(S.cur==id)S.cur=S.projects[0]?.id||null;save();render()}
+/* PDF */
+async function pdf(){if(!window.jspdf)return toast('jsPDF missing, see README');const e=S.ex,pr=cur();if(!pr)return toast('Select a project');
+const[pw,ph]=PAPER[e.paper],d=new window.jspdf.jsPDF({unit:'mm',format:[pw,ph],orientation:e.ori}),W=d.internal.pageSize.getWidth(),Hh=d.internal.pageSize.getHeight(),[mt,mr,mb,ml]=e.m.map(Number),cw=W-ml-mr;let y=mt;
+d.setFontSize(16).setFont(undefined,'bold').text(e.title,ml,y+5);d.setFontSize(9).setFont(undefined,'normal');
+d.text(`Project: ${pr.name}${pr.addr?' - '+pr.addr:''}`,ml,y+11);d.text(`Generated: ${fmt(Date.now())}${e.co?'   |   '+e.co:''}`,ml,y+16);y+=21;
+const tw=+e.th,cols=[8,tw+3,0,46];cols[2]=cw-cols[0]-cols[1]-cols[3];const xs=[ml];cols.forEach((c,i)=>xs.push(xs[i]+c));
+const head=()=>{d.setFillColor(20,60,120).rect(ml,y,cw,6,'F');d.setTextColor(255).setFontSize(8).setFont(undefined,'bold');['#','PHOTO','ISSUE / DESCRIPTION','DETAILS'].forEach((t,i)=>d.text(t,xs[i]+1.5,y+4));d.setTextColor(0);y+=6};head();
+S.items.filter(i=>i.pid==pr.id&&(e.st=='All'||i.st==e.st)).reverse().forEach((it,n)=>{
+const th=Math.min(tw*it.h/it.w,70),tl=d.splitTextToSize(it.desc||'',cols[2]-3),rh=Math.max(th+3,10+tl.length*3.6,28);
+if(y+rh>Hh-mb-6){d.addPage();y=mt;head()}
+d.setDrawColor(150).rect(ml,y,cw,rh);xs.slice(1,-1).forEach(x=>d.line(x,y,x,y+rh));
+d.setFontSize(8).setFont(undefined,'bold').text(String(n+1),xs[0]+1.5,y+5);d.addImage(it.img,'JPEG',xs[1]+1.5,y+1.5,tw,th);
+d.text(`[${it.cat}] ${it.title}`.slice(0,70),xs[2]+1.5,y+5,{maxWidth:cols[2]-3});d.setFont(undefined,'normal').text(tl,xs[2]+1.5,y+10);
+d.text([`Loc: ${it.loc||'-'}`,`To: ${it.to||'-'}`,`Priority: ${it.pr}`,`Status: ${it.st}`,fmt(it.ts)],xs[3]+1.5,y+5,{maxWidth:cols[3]-3});y+=rh});
+S.plans.filter(p=>p.pid==pr.id&&e.plans[p.id]).forEach(p=>{d.addPage();d.setFontSize(12).setFont(undefined,'bold').text('KEY PLAN: '+p.name,ml,mt+4);const s=Math.min(cw/p.w,(Hh-mt-mb-10)/p.h);d.addImage(p.marked||p.src,'JPEG',ml,mt+8,p.w*s,p.h*s)});
+const N=d.getNumberOfPages();for(let i=1;i<=N;i++){d.setPage(i);d.setFontSize(7).setFont(undefined,'normal').text(`Page ${i} / ${N}`,W-mr,Hh-Math.max(mb/2,4),{align:'right'})}
+const nm=`${pr.name}-punchlist.pdf`.replace(/\s+/g,'_'),C=window.Capacitor?.Plugins;
+if(C?.Filesystem&&C?.Share){const r=await C.Filesystem.writeFile({path:nm,data:d.output('datauristring').split(',')[1],directory:'CACHE'});await C.Share.share({title:nm,url:r.uri})}else d.save(nm);toast('PDF ready')}
+load().then(s=>{if(s)S=Object.assign(S,s);S.ex=Object.assign({plans:{}},S.ex);if(!S.cur&&S.projects[0])S.cur=S.projects[0].id;render()});
+</script></body></html>
