@@ -34,7 +34,7 @@ label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--m
 #menu .m{display:flex;gap:16px;padding:16px 4px;border-bottom:1.5px solid var(--ln);font-weight:800;letter-spacing:.12em;cursor:pointer}#menu .m i{font-style:normal;color:var(--ac);width:54px}
 .tb{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:24px;border:1.5px solid var(--ln)}.tb div{padding:8px;border-right:1.5px solid var(--ln)}
 canvas{width:100%;border:1.5px solid var(--ln);touch-action:none;background:#fff;display:block}
-#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--am);color:var(--bt);padding:9px 14px;font-weight:800;z-index:20;display:none}
+.cw{overflow:auto;max-height:62vh;border:1.5px solid var(--ln)}.cw canvas{max-width:none;border:0}input[type=range]{padding:0;margin:0}#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--am);color:var(--bt);padding:9px 14px;font-weight:800;z-index:20;display:none}
 .on{background:var(--ac);color:var(--bg)}
 </style></head><body>
 <div class="hz"></div>
@@ -42,10 +42,10 @@ canvas{width:100%;border:1.5px solid var(--ln);touch-action:none;background:#fff
 <main id="app"></main>
 <div id="menu"></div><div id="toast"></div>
 <input id="f" type="file" accept="image/*" capture="environment" hidden onchange="onPhoto(this)">
-<input id="pf" type="file" accept="image/*" hidden onchange="onPlan(this)">
-<script src="jspdf.umd.min.js"></script>
+<input id="pf" type="file" accept="image/*,application/pdf" hidden onchange="onPlan(this)">
+<input id=af type=file accept="image/*" capture=environment hidden onchange="onAfter(this)"><input id=lf type=file accept="image/*" hidden onchange="onLogo(this)"><script src="jspdf.umd.min.js"></script><script src="exceljs.min.js"></script><script src="pdf.min.js"></script>
 <script>
-let S={projects:[],items:[],plans:[],theme:'dark',cur:null,ex:{paper:'A4',ori:'p',m:[15,12,15,12],th:32,st:'All',title:'Punch List Report',co:'',plans:{}}},V='home',P={},E={tool:'pin',col:'#ff3b30',n:1},H=[],X;
+let S={projects:[],items:[],plans:[],theme:'dark',cur:null,ex:{paper:'A4',ori:'p',m:[15,12,15,12],th:32,st:'All',title:'Punch List Report',co:'',plans:{},date:new Date().toISOString().slice(0,10)}},V='home',P={},E={tool:'pin',col:'#ff3b30',n:1,w:3},H=[],X,Z=1;
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),uid=()=>Math.random().toString(36).slice(2,10);
 const CATS=['Architectural','Structural','MEP','Civil','Finishes','Safety','Other'],PR=['Low','Medium','High'],ST=['Open','Re-check','Closed'];
 const PAPER={A3:[297,420],A4:[210,297],A5:[148,210],Letter:[215.9,279.4],Legal:[215.9,355.6],Tabloid:[279.4,431.8]};
@@ -61,24 +61,34 @@ function menu(o){const m=$('#menu');m.style.display=o?'block':'none';if(!o)retur
 const L=[['G-001','Home','home'],['A-101','Projects','projects'],['A-102','Punch list','list'],['A-103','Plans &amp; markup','plans'],['C-201','Export PDF','export']];
 m.innerHTML=`<div class=row style="align-items:center"><h1 style="font-size:20px;color:var(--am)">SHEET INDEX</h1><button onclick="menu(0)" style="flex:0">X</button></div><div style="height:4px;background:var(--am);margin:8px 0"></div>`+L.map(l=>`<div class=m onclick="go('${l[2]}')"><i>${l[0]}</i>${l[1]}</div>`).join('')+
 `<div class=m onclick="S.theme=S.theme=='dark'?'light':'dark';save();menu(0);render()"><i>S-401</i>Theme: ${S.theme=='dark'?'Dark → Blueprint':'Blueprint → Dark'}</div>
-<div class=tb><div><small>Project</small><br>Punch List Pro</div><div><small>Mode</small><br>Offline ready</div><div style="border:0"><small>Rev</small><br>1.0</div></div>`}
+<div class=tb><div><small>Project</small><br>Punch List Pro</div><div><small>Mode</small><br>Offline ready</div><div style="border:0"><small>Rev</small><br>2.0</div></div>`}
 /* photo + stamp */
-function img(file,max){return new Promise(r=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);r({c,w:c.width,h:c.height})};i.src=URL.createObjectURL(file)})}
+function img(file,max){return new Promise(r=>{const i=new Image();i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;const q=c.getContext('2d');q.fillStyle='#fff';q.fillRect(0,0,c.width,c.height);q.drawImage(i,0,0,c.width,c.height);r({c,w:c.width,h:c.height})};i.src=URL.createObjectURL(file)})}
 async function onPhoto(el){const f=el.files[0];el.value='';if(!f)return;if(!S.projects.length){toast('Create a project first');return go('projects')}
 const ts=Date.now(),{c,w,h}=await img(f,1280),x=c.getContext('2d'),fs=Math.max(14,w/38),t=fmt(ts);
 x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,h-fs*1.8,w,fs*1.8);x.fillStyle='#ffb000';x.font=`bold ${fs}px sans-serif`;x.fillText(t,fs*.5,h-fs*.5);
 go('form',{it:{id:uid(),img:c.toDataURL('image/jpeg',.75),w,h,ts,pid:S.cur||S.projects[0].id,cat:CATS[0],title:'',pr:'Medium',st:'Open',desc:'',loc:'',to:'',isNew:1}})}
+async function st(f){const ts=Date.now(),{c,w,h}=await img(f,1280),x=c.getContext('2d'),fs=Math.max(14,w/38);x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,h-fs*1.8,w,fs*1.8);x.fillStyle='#ffb000';x.font=`bold ${fs}px sans-serif`;x.fillText(fmt(ts),fs*.5,h-fs*.5);return{img:c.toDataURL('image/jpeg',.75),w,h,ts}}
+async function onAfter(el){const f=el.files[0];el.value='';if(!f)return;const r=await st(f);Object.assign(P.it,{aimg:r.img,aw:r.w,ah:r.h,ats:r.ts});render()}
+async function onLogo(el){const f=el.files[0];el.value='';if(!f||!cur())return;const{c,w,h}=await img(f,500);Object.assign(cur(),{logo:c.toDataURL('image/jpeg',.9),lw:w,lh:h});save();render()}
+function ren(id){const q=S.plans.find(x=>x.id==id),n=prompt('Plan name',q.name);if(n&&n.trim()){q.name=n.trim();save();render()}}
 const opt=(a,v)=>a.map(x=>`<option ${x==v?'selected':''}>${x}</option>`).join('');
 const bind=(o,k)=>`oninput="${o}.${k}=this.value" onchange="${o}.${k}=this.value"`;
 function saveItem(){const i=P.it;if(!i.title.trim())return toast('Enter the issue');if(i.isNew){delete i.isNew;S.items.unshift(i);S.cur=i.pid}else S.items=S.items.map(x=>x.id==i.id?i:x);save();toast('Saved');go('list')}
 function cyc(id){const i=S.items.find(x=>x.id==id);i.st=ST[(ST.indexOf(i.st)+1)%3];save();render()}
 /* plans */
-async function onPlan(el){const f=el.files[0];el.value='';if(!f||!S.cur)return;const{c,w,h}=await img(f,1800);S.plans.push({id:uid(),pid:S.cur,name:f.name.replace(/\.[^.]+$/,''),src:c.toDataURL('image/jpeg',.85),w,h});save();render()}
-function edit(id){const pl=S.plans.find(x=>x.id==id);E.n=1;go('ed',{pl,after(){const c=$('#cv'),i=new Image();i.onload=()=>{c.width=pl.w;c.height=pl.h;X=c.getContext('2d');X.drawImage(i,0,0);H=[c.toDataURL()];wire(c)};i.src=pl.marked||pl.src}})}
-function wire(c){const lw=Math.max(3,c.width/250),pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};let d=0;
-c.onpointerdown=e=>{const[x,y]=pt(e);X.strokeStyle=X.fillStyle=E.col;X.lineWidth=lw;X.lineCap='round';
-if(E.tool=='pin'){X.beginPath();X.arc(x,y,lw*4,0,7);X.fill();X.fillStyle='#fff';X.font=`bold ${lw*5}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText(E.n++,x,y);H.push(c.toDataURL());$('#pn').textContent=E.n}else{d=1;X.beginPath();X.moveTo(x,y)}};
-c.onpointermove=e=>{if(d){const[x,y]=pt(e);X.lineTo(x,y);X.stroke()}};c.onpointerup=c.onpointerleave=()=>{if(d){d=0;H.push(c.toDataURL())}}}
+async function onPlan(el){const f=el.files[0];el.value='';if(!f||!S.cur)return;let nm=f.name.replace(/\.[^.]+$/,''),c,w,h;if(f.type=='application/pdf'){if(!window.pdfjsLib)return toast('PDF reader missing');pdfjsLib.GlobalWorkerOptions.workerSrc='pdf.worker.min.js';const doc=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let pg=1;if(doc.numPages>1)pg=Math.min(doc.numPages,Math.max(1,+prompt('Which page? (1-'+doc.numPages+')','1')||1));const page=await doc.getPage(pg),v0=page.getViewport({scale:1}),v=page.getViewport({scale:1800/Math.max(v0.width,v0.height)});c=document.createElement('canvas');c.width=v.width;c.height=v.height;const q=c.getContext('2d');q.fillStyle='#fff';q.fillRect(0,0,c.width,c.height);await page.render({canvasContext:q,viewport:v}).promise;w=c.width;h=c.height;if(doc.numPages>1)nm+=' p'+pg}else({c,w,h}=await img(f,1800));S.plans.push({id:uid(),pid:S.cur,name:nm,src:c.toDataURL('image/jpeg',.85),w,h});save();render()}
+function edit(id){const pl=S.plans.find(x=>x.id==id);E.n=1;Z=1;go('ed',{pl,after(){const c=$('#cv'),i=new Image();i.onload=()=>{c.width=pl.w;c.height=pl.h;X=c.getContext('2d');X.drawImage(i,0,0);H=[c.toDataURL()];wire(c)};i.src=pl.marked||pl.src}})}
+function wire(c){const pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]},B=document.createElement('canvas');B.width=c.width;B.height=c.height;let d=0,s;
+const arrow=(x1,y1,x2,y2,lw)=>{const a=Math.atan2(y2-y1,x2-x1),k=lw*5;X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.stroke();X.beginPath();X.moveTo(x2,y2);X.lineTo(x2-k*Math.cos(a-.45),y2-k*Math.sin(a-.45));X.lineTo(x2-k*Math.cos(a+.45),y2-k*Math.sin(a+.45));X.closePath();X.fill()};
+c.onpointerdown=e=>{if(E.tool=='pan')return;c.setPointerCapture(e.pointerId);const[x,y]=pt(e),lw=E.w*c.width/800;X.strokeStyle=X.fillStyle=E.col;X.lineWidth=lw;X.lineCap='round';X.lineJoin='round';
+if(E.tool=='pin'){X.beginPath();X.arc(x,y,lw*4,0,7);X.fill();X.fillStyle='#fff';X.font=`bold ${lw*5}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText(E.n++,x,y);H.push(c.toDataURL());$('#pn').textContent=E.n}
+else if(E.tool=='txt'){const t=prompt('Text');if(t){X.font=`bold ${(E.w+2)*c.width/150}px sans-serif`;X.textAlign='left';X.textBaseline='top';X.fillText(t,x,y);H.push(c.toDataURL())}}
+else{d=1;s=[x,y];B.getContext('2d').drawImage(c,0,0);X.beginPath();X.moveTo(x,y)}};
+c.onpointermove=e=>{if(!d)return;const[x,y]=pt(e),lw=E.w*c.width/800;if(E.tool=='pen'){X.lineTo(x,y);X.stroke()}else{X.drawImage(B,0,0);arrow(s[0],s[1],x,y,lw)}};
+c.onpointerup=c.onpointerleave=()=>{if(d){d=0;H.push(c.toDataURL())}};setTool(E.tool)}
+function setTool(t){E.tool=t;document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==t));$('#cv').style.touchAction=t=='pan'?'auto':'none'}
+function zoom(f){Z=Math.min(8,Math.max(1,Z*f));$('#cv').style.width=Z*100+'%'}
 function undo(){if(H.length<2)return;H.pop();const i=new Image();i.onload=()=>X.drawImage(i,0,0);i.src=H[H.length-1]}
 function savePlan(){P.pl.marked=$('#cv').toDataURL('image/jpeg',.85);save();toast('Markup saved');go('plans')}
 /* views */
@@ -88,10 +98,10 @@ return `<div class="pn row" style="align-items:center"><div><small>Job site</sma
 <div class=row><div class="pn stat" style="border-color:var(--rd)"><b>${c('Open')}</b><small>Open</small></div><div class="pn stat"><b style="color:var(--ac)">${c('Re-check')}</b><small>Re-check</small></div><div class="pn stat"><b style="color:var(--gn)">${c('Closed')}</b><small>Closed</small></div></div>
 <div class=grid>${T('01','PUNCH LIST',it.length+' items',"go('list')")}${T('02','PROJECTS',S.projects.length+' sites',"go('projects')")}${T('03','PLANS',S.plans.filter(p=>p.pid==S.cur).length+' sheets',"go('plans')")}${T('04','EXPORT','PDF report',"go('export')")}</div>
 <button class="pr fab" onclick="$('#f').click()">▶ Capture photo</button>`},
-projects(){return `<h2>PROJECTS</h2><div class=pn><label>Project name</label><input id=pn1 placeholder="e.g. Tanay Residence"><label>Address / client</label><input id=pa><button class=pr onclick="addP()">Create project</button></div>`+
+projects(){return `<h2>PROJECTS</h2><div class=pn><label>Project name</label><input id=pn1 placeholder="e.g. Tanay Residence"><label>Address / client</label><input id=pa><label>Inspected by</label><input id=pi><label>Sub-contractor</label><input id=ps><div class=row><div><label>Prepared by</label><input id=pp></div><div><label>Approved by</label><input id=pq></div></div><button class=pr onclick="addP()">Create project</button></div>`+
 S.projects.map(p=>`<div class="pn row" style="align-items:center"><div><b>${esc(p.name)}</b><br><span class=mu>${esc(p.addr||'')}</span></div><button class=sm style="flex:0" onclick="S.cur='${p.id}';save();go('home')">${p.id==S.cur?'Active':'Use'}</button><button class="sm dg" style="flex:0" onclick="delP('${p.id}')">Del</button></div>`).join('')},
-list(){const it=pit();return `<h2>PUNCH LIST · ${esc(cur()?.name||'')}</h2>`+(it.length?it.map(i=>`<div class="pn it"><img src="${i.img}" onclick="go('form',{it:S.items.find(x=>x.id=='${i.id}')})"><div onclick="go('form',{it:S.items.find(x=>x.id=='${i.id}')})"><b>${esc(i.title)}</b><br><span class=mu>${esc(i.cat)} · ${esc(i.loc)} · ${esc(i.to)}</span><br><span class=mu>${fmt(i.ts)}</span></div><div style="flex:0;text-align:right"><span class=chip onclick="cyc('${i.id}')" style="color:${i.st=='Open'?'var(--rd)':i.st=='Closed'?'var(--gn)':'var(--ac)'}">${i.st}</span><br><small>${i.pr}</small></div></div>`).join(''):'<div class="pn mu">No items yet. Tap Capture photo.</div>')+`<button class="pr fab" onclick="$('#f').click()">▶ Capture photo</button>`},
-form(){const i=P.it,o='P.it';return `<button class=back onclick="go('list')">‹ Back</button><img src="${i.img}" style="width:100%;border:1.5px solid var(--ln);margin-bottom:10px"><div class=pn>
+list(){const it=pit();return `<h2>PUNCH LIST · ${esc(cur()?.name||'')}</h2>`+(it.length?it.map(i=>`<div class="pn it"><img src="${i.img}" onclick="go('form',{it:S.items.find(x=>x.id=='${i.id}')})"><div onclick="go('form',{it:S.items.find(x=>x.id=='${i.id}')})"><b>${esc(i.title)}</b><br><span class=mu>${esc(i.cat)} · ${esc(i.loc)} · ${esc(i.to)}</span><br><span class=mu>${fmt(i.ts)}${i.aimg?' · AFTER ✓':''}</span></div><div style="flex:0;text-align:right"><span class=chip onclick="cyc('${i.id}')" style="color:${i.st=='Open'?'var(--rd)':i.st=='Closed'?'var(--gn)':'var(--ac)'}">${i.st}</span><br><small>${i.pr}</small></div></div>`).join(''):'<div class="pn mu">No items yet. Tap Capture photo.</div>')+`<button class="pr fab" onclick="$('#f').click()">▶ Capture photo</button>`},
+form(){const i=P.it,o='P.it';return `<button class=back onclick="go('list')">‹ Back</button><img src="${i.img}" style="width:100%;border:1.5px solid var(--ln);margin-bottom:10px"><div class=pn><label>After photo (subcontractor)</label>${i.aimg?`<img src="${i.aimg}" style="width:100%;margin:6px 0">`:''}<button class=sm onclick="$('#af').click()">${i.aimg?'Replace':'Add'} after photo</button>${i.aimg?' <button class="sm dg" onclick="delete P.it.aimg;render()">Remove</button>':''}</div><div class=pn>
 <label>Project</label><select ${bind(o,'pid')}>${S.projects.map(p=>`<option value="${p.id}" ${p.id==i.pid?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
 <label>Issue</label><input value="${esc(i.title)}" placeholder="e.g. Cracked tile at corridor" ${bind(o,'title')}>
 <div class=row><div><label>Category</label><select ${bind(o,'cat')}>${opt(CATS,i.cat)}</select></div><div><label>Priority</label><select ${bind(o,'pr')}>${opt(PR,i.pr)}</select></div></div>
@@ -100,35 +110,57 @@ form(){const i=P.it,o='P.it';return `<button class=back onclick="go('list')">‹
 <label>Assigned to</label><input value="${esc(i.to)}" ${bind(o,'to')}>
 <label>Status</label><select ${bind(o,'st')}>${opt(ST,i.st)}</select>
 <button class=pr style="width:100%" onclick="saveItem()">Save item</button>${i.isNew?'':`<button class=dg style="width:100%;margin-top:8px" onclick="if(confirm('Delete item?')){S.items=S.items.filter(x=>x.id!='${i.id}');save();go('list')}">Delete</button>`}</div>`},
-plans(){const L=S.plans.filter(p=>p.pid==S.cur);return `<h2>PLANS · ${esc(cur()?.name||'select a project')}</h2><button class=pr style="width:100%;margin-bottom:12px" onclick="$('#pf').click()">Upload plan image</button>`+(L.length?L.map(p=>`<div class="pn it"><img src="${p.marked||p.src}"><div><b>${esc(p.name)}</b><br><span class=mu>${p.marked?'Marked up':'No markup'}</span></div><div style="flex:0"><button class=sm onclick="edit('${p.id}')">Markup</button><br><br><button class="sm dg" onclick="S.plans=S.plans.filter(x=>x.id!='${p.id}');save();render()">Del</button></div></div>`).join(''):'<div class="pn mu">Upload a floor plan photo or screenshot (JPG/PNG). For PDF plans, export a page as an image first.</div>')},
-ed(){const C=['#ff3b30','#ffb000','#22d3ee','#00c853','#111111'];return `<button class=back onclick="go('plans')">‹ Back</button><div class=row style="margin-bottom:8px"><button class="sm ${E.tool=='pin'?'on':''}" onclick="E.tool='pin';render2()">Pin <span id=pn>${E.n}</span></button><button class="sm ${E.tool=='pen'?'on':''}" onclick="E.tool='pen';render2()">Pen</button><button class=sm onclick="undo()">Undo</button></div><div class=row style="margin-bottom:8px">${C.map(c=>`<button class=sm onclick="E.col='${c}'" style="background:${c};border-color:#fff;flex:0 0 40px;height:30px"></button>`).join('')}</div><canvas id=cv></canvas><button class=pr style="width:100%;margin-top:10px" onclick="savePlan()">Save markup</button>`},
-export(){const e=S.ex,pl=S.plans.filter(p=>p.pid==S.cur),n=(k,l,u='')=>`<div><label>${l}</label><input type=number value="${e.m[k]}" oninput="S.ex.m[${k}]=this.value"></div>`;
-return `<h2>EXPORT PDF</h2><div class=pn><label>Report title</label><input value="${esc(e.title)}" oninput="S.ex.title=this.value"><label>Company (optional)</label><input value="${esc(e.co)}" oninput="S.ex.co=this.value">
-<div class=row><div><label>Paper</label><select onchange="S.ex.paper=this.value">${opt(Object.keys(PAPER),e.paper)}</select></div><div><label>Orientation</label><select onchange="S.ex.ori=this.value"><option value=p ${e.ori=='p'?'selected':''}>Portrait</option><option value=l ${e.ori=='l'?'selected':''}>Landscape</option></select></div></div>
+plans(){const L=S.plans.filter(p=>p.pid==S.cur);return `<h2>PLANS · ${esc(cur()?.name||'select a project')}</h2><button class=pr style="width:100%;margin-bottom:12px" onclick="$('#pf').click()">Upload plan (image or PDF)</button>`+(L.length?L.map(p=>`<div class="pn it"><img src="${p.marked||p.src}"><div><b>${esc(p.name)}</b><br><span class=mu>${p.marked?'Marked up':'No markup'}</span></div><div style="flex:0"><button class=sm onclick="edit('${p.id}')">Markup</button><br><br><button class=sm onclick="ren('${p.id}')">Rename</button><br><br><button class="sm dg" onclick="S.plans=S.plans.filter(x=>x.id!='${p.id}');save();render()">Del</button></div></div>`).join(''):'<div class="pn mu">Upload a plan as an image or PDF.</div>')},
+ed(){const C=['#ff3b30','#ffb000','#22d3ee','#00c853','#111111','#ffffff'],T=[['pin','Pin'],['pen','Pen'],['arr','Arrow'],['txt','Text'],['pan','Pan']];
+return `<button class=back onclick="go('plans')">‹ Back</button><div class=row style="margin-bottom:6px;flex-wrap:wrap">${T.map(t=>`<button class=sm data-t=${t[0]} onclick="setTool('${t[0]}')">${t[1]}${t[0]=='pin'?' <span id=pn>'+E.n+'</span>':''}</button>`).join('')}</div>
+<div class=row style="margin-bottom:6px;align-items:center"><button class=sm onclick="zoom(.7)">−</button><button class=sm onclick="zoom(1.5)">+</button><button class=sm onclick="undo()">Undo</button><label style="flex:2;margin:0">Weight<input type=range min=1 max=12 value=${E.w} oninput="E.w=+this.value"></label></div>
+<div class=row style="margin-bottom:8px">${C.map(c=>`<button class=sm onclick="E.col='${c}'" style="background:${c};border-color:#fff;flex:0 0 40px;height:30px"></button>`).join('')}</div><div class=cw><canvas id=cv></canvas></div><button class=pr style="width:100%;margin-top:10px" onclick="savePlan()">Save markup</button>`},
+export(){const e=S.ex,p=cur()||{},pl=S.plans.filter(q=>q.pid==S.cur),n=(k,l)=>`<div><label>${l}</label><input type=number value="${e.m[k]}" oninput="S.ex.m[${k}]=this.value"></div>`,f=(k,l)=>`<label>${l}</label><input value="${esc(p[k])}" oninput="cur().${k}=this.value;save()">`;
+return `<h2>EXPORT · ${esc(p.name||'')}</h2><div class=pn><label>Company logo / image</label>${p.logo?`<img src="${p.logo}" style="height:50px;display:block;margin:4px 0">`:''}<button class=sm onclick="$('#lf').click()" style="margin-bottom:10px">${p.logo?'Change':'Add'} logo</button>
+<label>Report title</label><input value="${esc(e.title)}" oninput="S.ex.title=this.value"><label>Date of inspection</label><input type=date value="${e.date}" oninput="S.ex.date=this.value">${f('by','Inspected by')}${f('sub','Sub-contractor')}<div class=row><div>${f('prep','Prepared by')}</div><div>${f('appr','Approved by')}</div></div></div>
+<div class=pn><div class=row><div><label>Paper</label><select onchange="S.ex.paper=this.value">${opt(Object.keys(PAPER),e.paper)}</select></div><div><label>Orientation</label><select onchange="S.ex.ori=this.value"><option value=p ${e.ori=='p'?'selected':''}>Portrait</option><option value=l ${e.ori=='l'?'selected':''}>Landscape</option></select></div></div>
 <label>Margins (mm): top, right, bottom, left</label><div class=row>${n(0,'T')}${n(1,'R')}${n(2,'B')}${n(3,'L')}</div>
 <div class=row><div><label>Photo size</label><select onchange="S.ex.th=this.value"><option value=22 ${e.th==22?'selected':''}>Small</option><option value=32 ${e.th==32?'selected':''}>Medium</option><option value=48 ${e.th==48?'selected':''}>Large</option></select></div><div><label>Items</label><select onchange="S.ex.st=this.value">${opt(['All',...ST],e.st)}</select></div></div>
-<label>Key plans to attach</label>${pl.length?pl.map(p=>`<div style="margin:4px 0"><input type=checkbox style="width:auto;margin:0 8px 0 0" ${e.plans[p.id]?'checked':''} onchange="S.ex.plans['${p.id}']=this.checked"> ${esc(p.name)}</div>`).join(''):'<div class=mu>No plans uploaded for this project.</div>'}
-<button class=pr style="width:100%;margin-top:14px" onclick="save();pdf()">Generate PDF</button></div>`}};
-function render2(){const c=$('#cv'),d=c.toDataURL();const i=new Image();render();const n=$('#cv');n.width=c.width;n.height=c.height;X=n.getContext('2d');i.onload=()=>{X.drawImage(i,0,0);wire(n)};i.src=d}
-function addP(){const n=$('#pn1').value.trim();if(!n)return toast('Enter a project name');const p={id:uid(),name:n,addr:$('#pa').value};S.projects.push(p);S.cur=p.id;save();go('home')}
+<label>Key plans to attach (PDF)</label>${pl.length?pl.map(q=>`<div style="margin:4px 0"><input type=checkbox style="width:auto;margin:0 8px 0 0" ${e.plans[q.id]?'checked':''} onchange="S.ex.plans['${q.id}']=this.checked"> ${esc(q.name)}</div>`).join(''):'<div class=mu>No plans uploaded for this project.</div>'}</div>
+<button class=pr style="width:100%" onclick="save();pdf()">Generate PDF</button><button style="width:100%;margin-top:8px" onclick="save();xls()">Generate Excel</button>`}};
+function addP(){const n=$('#pn1').value.trim();if(!n)return toast('Enter a project name');const p={id:uid(),name:n,addr:$('#pa').value,by:$('#pi').value,sub:$('#ps').value,prep:$('#pp').value,appr:$('#pq').value};S.projects.push(p);S.cur=p.id;save();go('home')}
 function delP(id){if(!confirm('Delete project and all its items?'))return;S.projects=S.projects.filter(p=>p.id!=id);S.items=S.items.filter(i=>i.pid!=id);S.plans=S.plans.filter(i=>i.pid!=id);if(S.cur==id)S.cur=S.projects[0]?.id||null;save();render()}
-/* PDF */
+/* export */
+const fmtD=s=>new Date(s+'T00:00').toLocaleDateString([],{dateStyle:'long'});
+async function outFile(nm,b64,mime){const C=window.Capacitor?.Plugins;if(C?.Filesystem&&C?.Share){const r=await C.Filesystem.writeFile({path:nm,data:b64,directory:'CACHE'});await C.Share.share({title:nm,url:r.uri})}else{const a=document.createElement('a');a.href='data:'+mime+';base64,'+b64;a.download=nm;a.click()}}
+const itemsOf=(pr,e)=>S.items.filter(i=>i.pid==pr.id&&(e.st=='All'||i.st==e.st)).reverse();
 async function pdf(){if(!window.jspdf)return toast('jsPDF missing, see README');const e=S.ex,pr=cur();if(!pr)return toast('Select a project');
-const[pw,ph]=PAPER[e.paper],d=new window.jspdf.jsPDF({unit:'mm',format:[pw,ph],orientation:e.ori}),W=d.internal.pageSize.getWidth(),Hh=d.internal.pageSize.getHeight(),[mt,mr,mb,ml]=e.m.map(Number),cw=W-ml-mr;let y=mt;
-d.setFontSize(16).setFont(undefined,'bold').text(e.title,ml,y+5);d.setFontSize(9).setFont(undefined,'normal');
-d.text(`Project: ${pr.name}${pr.addr?' - '+pr.addr:''}`,ml,y+11);d.text(`Generated: ${fmt(Date.now())}${e.co?'   |   '+e.co:''}`,ml,y+16);y+=21;
-const tw=+e.th,cols=[8,tw+3,0,46];cols[2]=cw-cols[0]-cols[1]-cols[3];const xs=[ml];cols.forEach((c,i)=>xs.push(xs[i]+c));
-const head=()=>{d.setFillColor(20,60,120).rect(ml,y,cw,6,'F');d.setTextColor(255).setFontSize(8).setFont(undefined,'bold');['#','PHOTO','ISSUE / DESCRIPTION','DETAILS'].forEach((t,i)=>d.text(t,xs[i]+1.5,y+4));d.setTextColor(0);y+=6};head();
-S.items.filter(i=>i.pid==pr.id&&(e.st=='All'||i.st==e.st)).reverse().forEach((it,n)=>{
-const th=Math.min(tw*it.h/it.w,70),tl=d.splitTextToSize(it.desc||'',cols[2]-3),rh=Math.max(th+3,10+tl.length*3.6,28);
+const[pw,ph]=PAPER[e.paper],d=new window.jspdf.jsPDF({unit:'mm',format:[pw,ph],orientation:e.ori}),W=d.internal.pageSize.getWidth(),Hh=d.internal.pageSize.getHeight(),[mt,mr,mb,ml]=e.m.map(Number),cw=W-ml-mr;let y=mt,tx=ml,lh=10;
+if(pr.logo){let lw=16*pr.lw/pr.lh;lh=16;if(lw>45){lw=45;lh=lw*pr.lh/pr.lw}d.addImage(pr.logo,'JPEG',ml,y,lw,lh);tx=ml+lw+4}
+d.setFontSize(16).setFont(undefined,'bold').text(e.title,tx,y+Math.min(lh,10)/2+3);y+=lh+4;
+const hw=cw/2;d.setFontSize(9);[['Project',pr.name+(pr.addr?' - '+pr.addr:'')],['Date of Inspection',fmtD(e.date)],['Inspected by',pr.by],['Sub-contractor',pr.sub]].forEach((r,i)=>{const x=ml+(i%2)*hw,yy=y+Math.floor(i/2)*8,l=r[0]+': ';d.setDrawColor(150).rect(x,yy,hw,8);d.setFont(undefined,'bold').text(l,x+1.5,yy+5.2);d.setFont(undefined,'normal').text(String(r[1]||'-'),x+1.5+d.getTextWidth(l),yy+5.2,{maxWidth:hw-d.getTextWidth(l)-3})});y+=20;
+const tw=+e.th,cols=[8,tw+3,tw+3,0,40];cols[3]=cw-cols[0]-cols[1]-cols[2]-cols[4];const xs=[ml];cols.forEach((c,i)=>xs.push(xs[i]+c));
+const head=()=>{d.setFillColor(20,60,120).rect(ml,y,cw,6,'F');d.setTextColor(255).setFontSize(8).setFont(undefined,'bold');['#','BEFORE','AFTER','ISSUE / DESCRIPTION','DETAILS'].forEach((t,i)=>d.text(t,xs[i]+1.5,y+4));d.setTextColor(0);y+=6};head();
+itemsOf(pr,e).forEach((it,n)=>{
+const th=Math.min(tw*it.h/it.w,70),tl=d.splitTextToSize(it.desc||'',cols[3]-3),rh=Math.max(th+3,10+tl.length*3.6,28);
 if(y+rh>Hh-mb-6){d.addPage();y=mt;head()}
 d.setDrawColor(150).rect(ml,y,cw,rh);xs.slice(1,-1).forEach(x=>d.line(x,y,x,y+rh));
 d.setFontSize(8).setFont(undefined,'bold').text(String(n+1),xs[0]+1.5,y+5);d.addImage(it.img,'JPEG',xs[1]+1.5,y+1.5,tw,th);
-d.text(`[${it.cat}] ${it.title}`.slice(0,70),xs[2]+1.5,y+5,{maxWidth:cols[2]-3});d.setFont(undefined,'normal').text(tl,xs[2]+1.5,y+10);
-d.text([`Loc: ${it.loc||'-'}`,`To: ${it.to||'-'}`,`Priority: ${it.pr}`,`Status: ${it.st}`,fmt(it.ts)],xs[3]+1.5,y+5,{maxWidth:cols[3]-3});y+=rh});
-S.plans.filter(p=>p.pid==pr.id&&e.plans[p.id]).forEach(p=>{d.addPage();d.setFontSize(12).setFont(undefined,'bold').text('KEY PLAN: '+p.name,ml,mt+4);const s=Math.min(cw/p.w,(Hh-mt-mb-10)/p.h);d.addImage(p.marked||p.src,'JPEG',ml,mt+8,p.w*s,p.h*s)});
-const N=d.getNumberOfPages();for(let i=1;i<=N;i++){d.setPage(i);d.setFontSize(7).setFont(undefined,'normal').text(`Page ${i} / ${N}`,W-mr,Hh-Math.max(mb/2,4),{align:'right'})}
-const nm=`${pr.name}-punchlist.pdf`.replace(/\s+/g,'_'),C=window.Capacitor?.Plugins;
-if(C?.Filesystem&&C?.Share){const r=await C.Filesystem.writeFile({path:nm,data:d.output('datauristring').split(',')[1],directory:'CACHE'});await C.Share.share({title:nm,url:r.uri})}else d.save(nm);toast('PDF ready')}
-load().then(s=>{if(s)S=Object.assign(S,s);S.ex=Object.assign({plans:{}},S.ex);if(!S.cur&&S.projects[0])S.cur=S.projects[0].id;render()});
+if(it.aimg)d.addImage(it.aimg,'JPEG',xs[2]+1.5,y+1.5,tw,Math.min(tw*it.ah/it.aw,70));else d.setFontSize(6).setTextColor(160).text('After photo',xs[2]+1.5,y+rh-1.5).setTextColor(0);
+d.setFontSize(8).setFont(undefined,'bold').text(`[${it.cat}] ${it.title}`.slice(0,70),xs[3]+1.5,y+5,{maxWidth:cols[3]-3});d.setFont(undefined,'normal').text(tl,xs[3]+1.5,y+10);
+d.text([`Loc: ${it.loc||'-'}`,`To: ${it.to||'-'}`,`Priority: ${it.pr}`,`Status: ${it.st}`,fmt(it.ts)],xs[4]+1.5,y+5,{maxWidth:cols[4]-3});y+=rh});
+if(y+32>Hh-mb-8){d.addPage();y=mt}y+=10;const sw=cw/2-10;
+[['Prepared by',pr.prep,ml],['Approved by',pr.appr,ml+cw/2+10]].forEach(g=>{d.setFontSize(9).setFont(undefined,'bold').text(g[0]+':',g[2],y);d.setDrawColor(0).line(g[2],y+14,g[2]+sw,y+14);d.setFont(undefined,'normal').text(g[1]||'',g[2],y+19);d.setFontSize(7).setTextColor(120).text('Name / Signature / Date',g[2],y+23);d.setTextColor(0)});
+S.plans.filter(q=>q.pid==pr.id&&e.plans[q.id]).forEach(q=>{d.addPage();d.setFontSize(12).setFont(undefined,'bold').text('KEY PLAN: '+q.name,ml,mt+4);const k=Math.min(cw/q.w,(Hh-mt-mb-10)/q.h);d.addImage(q.marked||q.src,'JPEG',ml,mt+8,q.w*k,q.h*k)});
+const N=d.getNumberOfPages();for(let i=1;i<=N;i++){d.setPage(i);d.setFontSize(7).setFont(undefined,'normal').text(`${i} of ${N}`,W/2,Hh-Math.max(mb/2,4),{align:'center'})}
+await outFile(`${pr.name}-punchlist.pdf`.replace(/\s+/g,'_'),d.output('datauristring').split(',')[1],'application/pdf');toast('PDF ready')}
+async function xls(){if(!window.ExcelJS)return toast('ExcelJS missing, see README');const e=S.ex,pr=cur();if(!pr)return toast('Select a project');
+const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Punch List'),im=u=>wb.addImage({base64:u,extension:'jpeg'});
+ws.columns=[5,20,20,26,14,36,20,18,10,11,18].map(width=>({width}));
+if(pr.logo){const w=Math.min(160,70*pr.lw/pr.lh);ws.addImage(im(pr.logo),{tl:{col:0,row:0},ext:{width:w,height:w*pr.lh/pr.lw}});ws.getRow(1).height=40;ws.getRow(2).height=40}
+ws.getCell('D1').value=e.title;ws.getCell('D1').font={bold:true,size:16};
+[['Project',pr.name+(pr.addr?' - '+pr.addr:'')],['Date of Inspection',fmtD(e.date)],['Inspected by',pr.by],['Sub-contractor',pr.sub]].forEach((h,i)=>{const r=ws.getRow(4+i);r.getCell(2).value=h[0]+':';r.getCell(2).font={bold:true};r.getCell(3).value=h[1]||''});
+const hr=ws.getRow(9);['#','Before photo','After photo','Issue','Category','Description','Location','Assigned to','Priority','Status','Date'].forEach((t,i)=>{const c=hr.getCell(i+1);c.value=t;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF143C78'}}});
+let r=10;itemsOf(pr,e).forEach((it,n)=>{const row=ws.getRow(r);row.height=75;[n+1,'','',it.title,it.cat,it.desc,it.loc,it.to,it.pr,it.st,fmt(it.ts)].forEach((v,i)=>{const c=row.getCell(i+1);c.value=v;c.alignment={vertical:'top',wrapText:true};c.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}}});
+ws.addImage(im(it.img),{tl:{col:1.05,row:r-1+.05},ext:{width:125,height:Math.min(125*it.h/it.w,92)}});
+if(it.aimg)ws.addImage(im(it.aimg),{tl:{col:2.05,row:r-1+.05},ext:{width:125,height:Math.min(125*it.ah/it.aw,92)}});r++});
+r+=2;[['Prepared by',pr.prep],['Approved by',pr.appr]].forEach(g=>{ws.getCell('B'+r).value=g[0]+':';ws.getCell('B'+r).font={bold:true};ws.getCell('C'+r).value=g[1]||'';ws.getCell('C'+r).border={bottom:{style:'thin'}};r+=2});
+const u8=new Uint8Array(await wb.xlsx.writeBuffer());let b='';for(let i=0;i<u8.length;i+=8192)b+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));
+await outFile(`${pr.name}-punchlist.xlsx`.replace(/\s+/g,'_'),btoa(b),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');toast('Excel ready')}
+load().then(s=>{if(s)S=Object.assign(S,s);S.ex=Object.assign({plans:{},date:new Date().toISOString().slice(0,10)},S.ex);if(!S.cur&&S.projects[0])S.cur=S.projects[0].id;render()});
 </script></body></html>
